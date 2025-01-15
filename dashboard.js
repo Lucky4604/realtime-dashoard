@@ -143,7 +143,7 @@ export class Dashboard {
 
     refreshData() {
         const currentTime = new Date().getTime();
-        const fromDate = currentTime - 10 * 1000;
+        const fromDate = currentTime - 24 * 60 * 60 * 1000;
         const toDate = currentTime;
 
         Object.values(this.wsClients).forEach(client => {

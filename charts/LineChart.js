@@ -42,11 +42,13 @@ export class LineChart extends Chart {
     
         const y = d3.scaleLinear()
             .domain([
-                d3.min(allData, d => d[this.yKey]),
+                // d3.min(allData, d => d[this.yKey]),
+                0,
                 d3.max(allData, d => d[this.yKey])
             ])
             .range([this.height - this.margin.bottom, this.margin.top])
             .nice();
+
     
         this.createXAxis(x, 'Time');
         this.createYAxis(y, 'Value');

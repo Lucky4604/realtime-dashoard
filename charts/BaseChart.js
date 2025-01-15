@@ -8,11 +8,11 @@ export class Chart {
     }
 
     createXAxis(x, label) {
-        const timeFormat = d3.timeFormat("%H:%M:%S"); // Format for HH:MM:SS
+        const timeFormat = d3.timeFormat("%H:%M:%S"); 
     
         this.svg.append('g')
             .attr('transform', `translate(0, ${this.height - this.margin.bottom})`)
-            .call(d3.axisBottom(x).tickFormat(timeFormat)) // Use formatted tick labels
+            .call(d3.axisBottom(x).tickFormat(timeFormat))
             .selectAll('text')
             .attr('font-size', '12px');
         
