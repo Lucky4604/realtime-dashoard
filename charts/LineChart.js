@@ -1,4 +1,3 @@
-
 import { Chart } from './BaseChart.js';
 
 
@@ -27,7 +26,7 @@ export class LineChart extends Chart {
             .style('box-shadow', '0 2px 4px rgba(0,0,0,0.1)');
     }
 
-    LineGraph() {
+    lineGraph() {
         this.svg.selectAll("*").remove();
     
         const allData = Object.values(this.data)
@@ -39,15 +38,16 @@ export class LineChart extends Chart {
         const x = d3.scaleTime()
             .domain(d3.extent(allData, d => new Date(d[this.xKey])))
             .range([this.margin.left, this.width - this.margin.right]);
-    
         const y = d3.scaleLinear()
             .domain([
-                // d3.min(allData, d => d[this.yKey]),
-                0,
+                d3.min(allData, d => d[this.yKey]),
+                // 0,
                 d3.max(allData, d => d[this.yKey])
             ])
             .range([this.height - this.margin.bottom, this.margin.top])
             .nice();
+
+        
 
     
         this.createXAxis(x, 'Time');
@@ -110,25 +110,25 @@ export class LineChart extends Chart {
             this.data[tag] = [];
         }
         this.data[tag] = sortedNewData;
-        this.LineGraph();
+        this.lineGraph();
     }
 
     addTooltip(x, y) {
         const timeFormat = d3.timeFormat("%H:%M:%S");
         const bisect = d3.bisector(d => new Date(d[this.xKey])).left;
-
+    
         const focuses = Object.entries(this.data).map(([tag, _], index) => {
             const focus = this.svg.append("g")
                 .attr("class", `focus-${tag}`)
                 .style("display", "none");
-
+    
             focus.append("circle")
                 .attr("r", 5)
                 .attr("fill", this.colors[index % this.colors.length]);
-
+    
             return { tag, focus };
         });
-
+    
         this.svg.append("rect")
             .attr("class", "overlay")
             .attr("width", this.width)
@@ -144,34 +144,44 @@ export class LineChart extends Chart {
             })
             .on("mousemove", (event) => {
                 const x0 = x.invert(d3.pointer(event)[0]);
-                let tooltipHTML = '<div style="font-weight: bold;">Data Points</div>';
-
-                focuses.forEach(({ tag, focus }, index) => {
-                    const seriesData = this.data[tag];
-                    const i = bisect(seriesData, x0, 1);
-                    if (i >= seriesData.length) return;
-
-                    const d0 = seriesData[i - 1];
-                    const d1 = seriesData[i];
-                    if (!d0 || !d1) return;
-
-                    const d = x0 - new Date(d0[this.xKey]) > new Date(d1[this.xKey]) - x0 ? d1 : d0;
-
-                    focus.attr("transform",
-                        `translate(${x(new Date(d[this.xKey]))},${y(d[this.yKey])})`);
-
-                    tooltipHTML += `
-                        <div style="color: ${this.colors[index % this.colors.length]} ">
-                            Series ${tag.split('-').pop()}: ${d[this.yKey].toFixed(2)}
-                        </div>`;
-                });
-
-                tooltipHTML += `<div>Time: ${timeFormat(x0)}</div>`;
-
-                this.tooltip
-                    .style('left', `${event.pageX + 10}px`)
-                    .style('top', `${event.pageY - 10}px`)
-                    .html(tooltipHTML);
+                const y0 = y.invert(d3.pointer(event)[1]);
+    
+                // Check if mouse position is within chart area
+                if (x0 >= x.domain()[0] && x0 <= x.domain()[1] && 
+                    y0 >= y.domain()[0] && y0 <= y.domain()[1]) {
+                    let tooltipHTML = '<div style="font-weight: bold;">Data Points</div>';
+    
+                    focuses.forEach(({ tag, focus }, index) => {
+                        const seriesData = this.data[tag];
+                        const i = bisect(seriesData, x0, 1);
+                        if (i >= seriesData.length) return;
+    
+                        const d0 = seriesData[i - 1];
+                        const d1 = seriesData[i];
+                        if (!d0 || !d1) return;
+    
+                        const d = x0 - new Date(d0[this.xKey]) > new Date(d1[this.xKey]) - x0 ? d1 : d0;
+    
+                        focus.attr("transform",
+                            `translate(${x(new Date(d[this.xKey]))},${y(d[this.yKey])})`);
+    
+                        tooltipHTML += `
+                            <div style="color: ${this.colors[index % this.colors.length]} ">
+                                Series ${tag.split('-').pop()}: ${d[this.yKey].toFixed(2)}
+                            </div>`;
+                    });
+    
+                    tooltipHTML += `<div>Time: ${timeFormat(x0)}</div>`;
+    
+                    this.tooltip
+                        .style('left', `${event.pageX + 10}px`)
+                        .style('top', `${event.pageY - 10}px`)
+                        .html(tooltipHTML)
+                        .style('visibility', 'visible');
+                } else {
+                    // Hide tooltip
+                    this.tooltip.style('visibility', 'hidden');
+                }
             });
     }
 }

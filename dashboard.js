@@ -98,11 +98,17 @@ export class Dashboard {
                 ...CONFIG.WS_MESSAGE,
                 tag: tag
             });
+            
             wsClient.setOnMessageCallback((event) => this.handleWebSocketMessage(event, tag));
             wsClient.connect();
             this.wsClients[tag] = wsClient;
         });
     }
+
+
+    
+
+  
 
     handleWebSocketMessage(event, tag) {
         try {
@@ -142,8 +148,8 @@ export class Dashboard {
     }
 
     refreshData() {
-        const currentTime = new Date().getTime();
-        const fromDate = currentTime - 24 * 60 * 60 * 1000;
+        const currentTime = CONFIG.WS_MESSAGE.to_date;
+        const fromDate = CONFIG.WS_MESSAGE.from_date;
         const toDate = currentTime;
 
         Object.values(this.wsClients).forEach(client => {

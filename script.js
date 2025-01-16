@@ -1,6 +1,6 @@
 import { Dashboard } from "./dashboard.js";
 
-Dashboard
+
 
 // Initialize the dashboard
 document.addEventListener('DOMContentLoaded', () => {
