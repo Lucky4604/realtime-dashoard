@@ -2,6 +2,8 @@ import { CONFIG } from './config.js';
 import { GraphCard } from './components/GraphCard.js';
 import { LineChart } from './charts/LineChart.js';
 import { WebSocketClient } from './webSocketClient.js';
+import { generateUID } from './utils.js';
+
 
 
 
@@ -92,18 +94,29 @@ export class Dashboard {
         refreshOptions.on("change", this.onAutoRefreshChange.bind(this));
     }
 
+
+  
+
     setupWebSockets() {
+        const baseConfig = {
+         url: CONFIG.WS_URL,
+         ...CONFIG.WS_MESSAGE
+        };
+         
         this.tags.forEach(tag => {
-            const wsClient = new WebSocketClient(CONFIG.WS_URL, {
-                ...CONFIG.WS_MESSAGE,
-                tag: tag
-            });
-            
-            wsClient.setOnMessageCallback((event) => this.handleWebSocketMessage(event, tag));
-            wsClient.connect();
-            this.wsClients[tag] = wsClient;
+         const uid =generateUID(); 
+         const wsClient = new WebSocketClient(baseConfig.url, {
+          ...baseConfig,
+          uid,
+          tag
+         });
+         wsClient.setOnMessageCallback((event) => this.handleWebSocketMessage(event, tag));
+         wsClient.connect();
+         this.wsClients[tag] = wsClient;
         });
     }
+
+    
 
 
     
@@ -148,7 +161,7 @@ export class Dashboard {
     }
 
     refreshData() {
-        const currentTime = CONFIG.WS_MESSAGE.to_date;
+        const currentTime = new Date().getTime();
         const fromDate = CONFIG.WS_MESSAGE.from_date;
         const toDate = currentTime;
 

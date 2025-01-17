@@ -10,6 +10,7 @@ export class LineChart extends Chart {
         this.yKey = yKey;
         this.colors = ['#2196F3', '#4CAF50', '#FFC107', '#E91E63'];
         this.setupTooltip();
+        this.isAxesCreated = false; 
     }
 
     setupTooltip() {
@@ -27,56 +28,81 @@ export class LineChart extends Chart {
     }
 
     lineGraph() {
-        this.svg.selectAll("*").remove();
-    
         const allData = Object.values(this.data)
             .flat()
             .sort((a, b) => new Date(a[this.xKey]) - new Date(b[this.xKey]));
-    
+
         if (allData.length === 0) return;
-    
+
+       
         const x = d3.scaleTime()
             .domain(d3.extent(allData, d => new Date(d[this.xKey])))
             .range([this.margin.left, this.width - this.margin.right]);
+
         const y = d3.scaleLinear()
             .domain([
                 d3.min(allData, d => d[this.yKey]),
-                // 0,
-                d3.max(allData, d => d[this.yKey])
+                d3.max(allData, d => d[this.yKey]),
             ])
             .range([this.height - this.margin.bottom, this.margin.top])
             .nice();
 
+     
+        if (!this.isAxesCreated) {
+            this.createXAxis(x, 'Time');
+            this.createYAxis(y, 'Value');
+            this.isAxesCreated = true;
+        }
+
+       
         
+           this.svg.select('.x-axis')
+            .transition()
+            .call(d3.axisBottom(x));
+
+        this.svg.select('.y-axis')
+            .transition()
+            .call(d3.axisLeft(y));
 
     
-        this.createXAxis(x, 'Time');
-        this.createYAxis(y, 'Value');
-    
+
+        this.svg.selectAll('.line').remove();
+       
         const line = d3.line()
-            .curve(d3.curveCardinal.tension(0.3))  
+            .curve(d3.curveCardinal.tension(0.3))
             .x(d => x(new Date(d[this.xKey])))
             .y(d => y(d[this.yKey]));
-    
+
+      
         Object.entries(this.data).forEach(([tag, seriesData], index) => {
             const sortedData = [...seriesData].sort((a, b) =>
                 new Date(a[this.xKey]) - new Date(b[this.xKey])
             );
-    
-            this.svg.append("path")
+
+            this.svg.append('path')
                 .datum(sortedData)
-                .attr("fill", "none")
-                .attr("stroke", this.colors[index % this.colors.length])
-                .attr("stroke-width", 2)
-                .attr("class", `line-${tag}`)
-                .attr("d", line);
+                .attr('class', `line line-${tag}`)
+                .attr('fill', 'none')
+                .attr('stroke', this.colors[index % this.colors.length])
+                .attr('stroke-width', 2)
+                .attr('d', line);
         });
-    
-        this.createLegend();
+
+     
         this.addTooltip(x, y);
     }
-    
 
+    updateData(newData, tag) {
+        const sortedNewData = [...newData].sort((a, b) =>
+            new Date(a[this.xKey]) - new Date(b[this.xKey])
+        );
+
+        if (!this.data[tag]) {
+            this.data[tag] = [];
+        }
+        this.data[tag] = sortedNewData;
+        this.lineGraph();
+    }
     createLegend() {
         const legend = this.svg.append("g")
             .attr("class", "legend")
@@ -99,18 +125,6 @@ export class LineChart extends Chart {
         //         .style("font-size", "12px")
         //         .text(`Series ${displayTag}`);
         // });
-    }
-
-    updateData(newData, tag) {
-        const sortedNewData = [...newData].sort((a, b) =>
-            new Date(a[this.xKey]) - new Date(b[this.xKey])
-        );
-
-        if (!this.data[tag]) {
-            this.data[tag] = [];
-        }
-        this.data[tag] = sortedNewData;
-        this.lineGraph();
     }
 
     addTooltip(x, y) {
@@ -146,7 +160,7 @@ export class LineChart extends Chart {
                 const x0 = x.invert(d3.pointer(event)[0]);
                 const y0 = y.invert(d3.pointer(event)[1]);
     
-                // Check if mouse position is within chart area
+              
                 if (x0 >= x.domain()[0] && x0 <= x.domain()[1] && 
                     y0 >= y.domain()[0] && y0 <= y.domain()[1]) {
                     let tooltipHTML = '<div style="font-weight: bold;">Data Points</div>';
