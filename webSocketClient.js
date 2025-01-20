@@ -1,17 +1,18 @@
 export class WebSocketClient {
-    constructor(url, message) {
+    constructor(url) {
         this.url = url;
-        this.message = message;
         this.socket = null;
         this.onMessageCallback = null;
     }
 
-    connect() {
+    connect(onOpenCallback) {
         this.socket = new WebSocket(this.url);
-
+        
         this.socket.onopen = () => {
             console.log('WebSocket connection established');
-            this.socket.send(JSON.stringify(this.message));
+            if (onOpenCallback) {
+                onOpenCallback();
+            }
         };
 
         this.socket.onmessage = (event) => {
@@ -39,20 +40,10 @@ export class WebSocketClient {
         this.onMessageCallback = callback;
     }
 
-
-    sendMessage(newMessage) {
-        this.message = { ...this.message, ...newMessage };
+    sendMessage(message) {
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            console.log('Sending updated message:', this.message);  
-            this.socket.send(JSON.stringify(this.message));
-        }
-    }
-
-    updateMessage(newData) {
-        this.message = { ...this.message, ...newData };
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            console.log('Updating message with new data:', this.message);
-            this.socket.send(JSON.stringify(this.message));
+            console.log('Sending message:', message);
+            this.socket.send(JSON.stringify(message));
         }
     }
 

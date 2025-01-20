@@ -9,16 +9,15 @@ export class Card {
             .append("div")
             .attr("class", "card-container");
 
-        cardContainer.selectAll(".card")
+       const cards= cardContainer.selectAll(".card")
             .data(this.data)
             .enter()
             .append("div")
             .attr("class", "card")
-            .html(d => `
-                <div class="card1"> 
-                    <h4>${d.title}</h4>
-                    <h6>${d.subtitle}</h6>
-                </div>
-            `);
+            cards.append('h4')
+            .text(d => d.title);
+          
+          cards.append('h6')
+            .text(d => d.subtitle);
     }
 }

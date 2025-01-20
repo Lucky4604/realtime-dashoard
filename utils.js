@@ -4,3 +4,8 @@ export function generateUID() {
         return v.toString(16);
     });
 }
+
+export function convertTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    return `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+}

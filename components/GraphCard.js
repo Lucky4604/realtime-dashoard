@@ -9,14 +9,15 @@ export class GraphCard {
             .append("div")
             .attr("class", "graph-cards-container");
 
-        graphCardsContainer.selectAll(".graph-card")
+       const cards= graphCardsContainer.selectAll(".graph-card")
             .data(this.data)
             .enter()
             .append("div")
             .attr("class", "card graph-card")
-            .html(d => `
-                <h4>${d.title}</h4>
-                <svg id="${d.id}"></svg>
-            `);
+            cards.append("h4")
+            .text(d => d.title);
+
+            cards.append("svg")
+             .attr("id", d => d.id);
     }
 }

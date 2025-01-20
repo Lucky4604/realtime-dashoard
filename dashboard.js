@@ -9,11 +9,13 @@ import { generateUID } from './utils.js';
 
 export class Dashboard {
     constructor() {
-        this.wsClients = {};
+        this.wsClient = null;
         this.lineChart = null;
         this.graphData = CONFIG.GRAPH_CARDS;
         this.autoRefreshInterval = null;
         this.tags = CONFIG.TAGS;
+        this.updatedData = {};
+        this.uidToTagMap = new Map(); 
     }
 
     initializeDashboard() {
@@ -21,7 +23,7 @@ export class Dashboard {
         this.createAutoRefreshControl();
         this.createGraphCards();
         this.setupLineChart();
-        this.setupWebSockets();
+        this.setupWebSocket();
         this.addUnloadListener();
     }
 
@@ -83,7 +85,6 @@ export class Dashboard {
             .attr("id", "auto-refresh");
 
         const arr = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45];
-
         refreshOptions.selectAll("option")
             .data(arr)
             .enter()
@@ -94,51 +95,51 @@ export class Dashboard {
         refreshOptions.on("change", this.onAutoRefreshChange.bind(this));
     }
 
+    setupWebSocket() {
+      
+        const wsUrl = CONFIG.WS_URL;
+        const baseMessageConfig = { ...CONFIG.WS_MESSAGE }; 
 
-  
+        this.wsClient = new WebSocketClient(wsUrl);
+        
+        this.wsClient.setOnMessageCallback((event) => {
+            try {
+                const receivedData = JSON.parse(event.data);
+                const tag = this.uidToTagMap.get(receivedData.uid);
+                console.log(`Received WebSocket data for ${tag}:`, receivedData);
 
-    setupWebSockets() {
-        const baseConfig = {
-         url: CONFIG.WS_URL,
-         ...CONFIG.WS_MESSAGE
-        };
-         
-        this.tags.forEach(tag => {
-         const uid =generateUID(); 
-         const wsClient = new WebSocketClient(baseConfig.url, {
-          ...baseConfig,
-          uid,
-          tag
-         });
-         wsClient.setOnMessageCallback((event) => this.handleWebSocketMessage(event, tag));
-         wsClient.connect();
-         this.wsClients[tag] = wsClient;
+                if (receivedData.measurements && receivedData.measurements.length > 0) {
+                    const formattedMeasurements = receivedData.measurements.map(measurement => ({
+                        time: this.wsClient.convertTimestamp(measurement.time),
+                        value: measurement.value
+                    }));
+                    this.lineChart.updateData(formattedMeasurements, tag);
+                   
+                }
+            } catch (error) {
+                console.error('Error parsing received message:', error);
+            }
+            
+        });
+       
+
+        
+        this.wsClient.connect(() => {
+            this.tags.forEach(tag => {
+                const uid = generateUID();
+                this.uidToTagMap.set(uid, tag);
+                
+                const message = {
+                    ...baseMessageConfig, 
+                    uid,
+                    tag
+                };
+                this.wsClient.sendMessage(message);
+            });
+           
         });
     }
-
     
-
-
-    
-
-  
-
-    handleWebSocketMessage(event, tag) {
-        try {
-            const receivedData = JSON.parse(event.data);
-            console.log(`Received WebSocket data for ${tag}:`, receivedData);
-
-            if (receivedData.measurements && receivedData.measurements.length > 0) {
-                const formattedMeasurements = receivedData.measurements.map(measurement => ({
-                    time: this.wsClients[tag].convertTimestamp(measurement.time),
-                    value: measurement.value
-                }));
-                this.lineChart.updateData(formattedMeasurements, tag);
-            }
-        } catch (error) {
-            console.error(`Error parsing received message for ${tag}:`, error);
-        }
-    }
 
     createGraphCards() {
         new GraphCard("body", this.graphData).create();
@@ -151,10 +152,15 @@ export class Dashboard {
 
     updateGraphData(minutes) {
         const timeStamp = minutes * 60 * 1000;
-        Object.values(this.wsClients).forEach(client => {
-            client.updateMessage({
+        this.tags.forEach(tag => {
+            const uid = generateUID();
+            this.uidToTagMap.set(uid, tag);
+            
+            this.wsClient.sendMessage({
                 time: timeStamp,
-                realtime: "true"
+                realtime: "true",
+                tag,
+                uid
             });
         });
         this.refreshData();
@@ -165,14 +171,19 @@ export class Dashboard {
         const fromDate = CONFIG.WS_MESSAGE.from_date;
         const toDate = currentTime;
 
-        Object.values(this.wsClients).forEach(client => {
+        this.tags.forEach(tag => {
+            const uid = generateUID();
+            this.uidToTagMap.set(uid, tag);
+            
             const message = {
-                ...client.message,
+                ...CONFIG.WS_MESSAGE,
                 from_date: fromDate,
-                to_date: toDate
+                to_date: toDate,
+                tag,
+                uid
             };
             console.log("Sending WebSocket message:", message);
-            client.sendMessage(message);
+            this.wsClient.sendMessage(message);
         });
     }
 
@@ -196,15 +207,17 @@ export class Dashboard {
 
     addUnloadListener() {
         window.addEventListener('beforeunload', () => {
-            Object.values(this.wsClients).forEach(client => {
-                if (client) {
-                    client.disconnect();
-                }
-            });
+            if (this.wsClient) {
+                this.wsClient.disconnect();
+            }
 
             if (this.autoRefreshInterval) {
                 clearInterval(this.autoRefreshInterval);
             }
+            
+         
+            this.uidToTagMap.clear();
         });
     }
+
 }
