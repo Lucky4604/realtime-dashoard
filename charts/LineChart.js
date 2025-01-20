@@ -1,109 +1,137 @@
 import { Chart } from './BaseChart.js';
+
+
+
 export class LineChart extends Chart {
-    constructor(selector, width, height, margin, data, xKey, yKey) {
-        super(selector, width, height, margin);
-        this.data = {};
-        this.xKey = xKey;
-        this.yKey = yKey;
-        this.colors = ['#2196F3', '#4CAF50', '#FFC107', '#E91E63'];
-        this.setupTooltip();
-    }
-    setupTooltip() {
-        this.tooltip = d3.select('body')
-            .append('div')
-            .attr('class', 'tooltip')
-            .style('position', 'absolute')
-            .style('visibility', 'hidden')
-            .style('background-color', 'white')
-            .style('border', '1px solid #ddd')
-            .style('border-radius', '4px')
-            .style('padding', '8px')
-            .style('font-size', '12px')
-            .style('box-shadow', '0 2px 4px rgba(0,0,0,0.1)');
-    }
-    lineGraph() {
-        this.svg.selectAll("*").remove();
-      
-    
-        const allData = Object.values(this.data)
-            .flat()
-            .sort((a, b) => new Date(a[this.xKey]) - new Date(b[this.xKey]));
-    
-        if (allData.length === 0) return;
-    
-        const x = d3.scaleTime()
-            .domain(d3.extent(allData, d => new Date(d[this.xKey])))
-            .range([this.margin.left, this.width - this.margin.right]);
-    
-        const y = d3.scaleLinear()
-            .domain([
-                d3.min(allData, d => d[this.yKey]),
-                d3.max(allData, d => d[this.yKey])
-            ])
-            .range([this.height - this.margin.bottom, this.margin.top])
-            .nice();
+  constructor(selector, width, height, margin, data, xKey, yKey) {
+    super(selector, width, height, margin);
+    this.data = {};
+    this.xKey = xKey;
+    this.yKey = yKey;
+    this.colors = ['#2196F3', '#4CAF50', '#FFC107', '#E91E63'];
+    this.setupTooltip();
+    this.isAxesCreated = false; 
+  }
 
 
-           
-        this.createXAxis(x, 'Time');
-        this.createYAxis(y, 'Value');
+  setupTooltip() {
+    this.tooltip = d3.select('body')
+      .append('div')
+      .attr('class', 'tooltip')
+      .style('position', 'absolute')
+      .style('visibility', 'hidden')
+      .style('background-color', 'white')
+      .style('border', '1px solid #ddd')
+      .style('border-radius', '4px')
+      .style('padding', '8px')
+      .style('font-size', '12px')
+      .style('box-shadow', '0 2px 4px rgba(0,0,0,0.1)');
+  }
+
+  lineGraph() {
+    const allData = Object.values(this.data)
+      .flat()
+      .sort((a, b) => new Date(a[this.xKey]) - new Date(b[this.xKey]));
+  
+    if (allData.length === 0) return;
+  
+    const x = d3.scaleTime()
+      .domain(d3.extent(allData, d => new Date(d[this.xKey])))
+      .range([this.margin.left, this.width - this.margin.right]);
+  
+    const y = d3.scaleLinear()
+      .domain([
+        d3.min(allData, d => d[this.yKey]),
+        d3.max(allData, d => d[this.yKey]),
+      ])
+      .range([this.height - this.margin.bottom, this.margin.top])
+      .nice();
+  
+    if (!this.isAxesCreated) {
+      this.createXAxis(x, 'Time');
+      this.createYAxis(y, 'Value');
+      this.isAxesCreated = true;
+    }
+  
+    this.svg.selectAll('.line').remove();
+    this.svg.select('.x-axis').remove();
+    this.svg.select('.y-axis').remove();
     
   
+   
+    const timeFormat = d3.timeFormat("%H:%M:%S");
+    this.svg.append('g')
+      .attr('class', 'x-axis')
+      .attr('transform', `translate(0, ${this.height - this.margin.bottom})`)
+      .call(d3.axisBottom(x).tickFormat(timeFormat))
+      .selectAll('text')
+      .attr('font-size', '12px');
+  
 
-        const line = d3.line()
-            .curve(d3.curveCardinal.tension(0.3))  
-            .x(d => x(new Date(d[this.xKey])))
-            .y(d => y(d[this.yKey]));
-    
-        Object.entries(this.data).forEach(([tag, seriesData], index) => {
-            const sortedData = [...seriesData].sort((a, b) =>
-                new Date(a[this.xKey]) - new Date(b[this.xKey])
-            );
-    
-            this.svg.append("path")
-                .datum(sortedData)
-                .attr("fill", "none")
-                .attr("stroke", this.colors[index % this.colors.length])
-                .attr("stroke-width", 2)
-                .attr("class", `line-${tag}`)
-                .attr("d", line);
-        });
-    
-        this.createLegend();
-        this.addTooltip(x, y);
+    this.svg.append('g')
+      .attr('class', 'y-axis')
+      .attr('transform', `translate(${this.margin.left}, 0)`)
+      .call(d3.axisLeft(y));
+  
+    const line = d3.line()
+      .curve(d3.curveCardinal.tension(0.3))
+      .x(d => x(new Date(d[this.xKey])))
+      .y(d => y(d[this.yKey]));
+  
+    Object.entries(this.data).forEach(([tag, seriesData], index) => {
+      const sortedData = [...seriesData].sort((a, b) =>
+        new Date(a[this.xKey]) - new Date(b[this.xKey])
+      );
+  
+      this.svg.append('path')
+        .datum(sortedData)
+        .attr('class', `line line-${tag}`)
+        .attr('fill', 'none')
+        .attr('stroke', this.colors[index % this.colors.length])
+        .attr('stroke-width', 2)
+        .attr('d', line);
+    });
+  
+    this.addTooltip(x, y);
+  }
+
+
+  updateData(newData, tag) {
+    const sortedNewData = [...newData].sort((a, b) =>
+      new Date(a[this.xKey]) - new Date(b[this.xKey])
+    );
+
+    if (!this.data[tag]) {
+      this.data[tag] = [];
     }
-    
-    createLegend() {
-        const legend = this.svg.append("g")
-            .attr("class", "legend")
-            .attr("transform", `translate(${this.width - this.margin.right -20}, ${this.margin.top-20})`);
-        // Object.entries(this.data).forEach(([tag, _], index) => {
-        //     const legendItem = legend.append("g")
-        //         .attr("transform", `translate(0, ${index * 20})`);
-        //     legendItem.append("rect")
-        //         .attr("width", 15)
-        //         .attr("height", 3)
-        //         .style("margin-right", "150px")
-        //         .attr("fill", this.colors[index % this.colors.length]);
-        //     const displayTag = tag.split('-').pop();
-        //     legendItem.append("text")
-        //         .attr("x", 20)
-        //         .attr("y", 5)
-        //         .style("font-size", "12px")
-        //         .text(`Series ${displayTag}`);
-        // });
-    }
-    updateData(newData, tag) {
-        const sortedNewData = [...newData].sort((a, b) =>
-            new Date(a[this.xKey]) - new Date(b[this.xKey])
-        );
-        if (!this.data[tag]) {
-            this.data[tag] = [];
-        }
-        this.data[tag] = sortedNewData;
-        this.lineGraph();
-    }
-    addTooltip(x, y) {
+    this.data[tag] = sortedNewData;
+    this.lineGraph();
+  }
+  createLegend() {
+    const legend = this.svg.append("g")
+      .attr("class", "legend")
+      .attr("transform", `translate(${this.width - this.margin.right -20}, ${this.margin.top-20})`);
+
+    // Object.entries(this.data).forEach(([tag, _], index) => {
+    // const legendItem = legend.append("g")
+    // .attr("transform", `translate(0, ${index * 20})`);
+
+    // legendItem.append("rect")
+    // .attr("width", 15)
+    // .attr("height", 3)
+    // .style("margin-right", "150px")
+    // .attr("fill", this.colors[index % this.colors.length]);
+
+    // const displayTag = tag.split('-').pop();
+    // legendItem.append("text")
+    // .attr("x", 20)
+    // .attr("y", 5)
+    // .style("font-size", "12px")
+    // .text(`Series ${displayTag}`);
+    // });
+  }
+
+  addTooltip(x, y) {
     const timeFormat = d3.timeFormat("%H:%M:%S");
     const bisect = d3.bisector(d => new Date(d[this.xKey])).left;
    
